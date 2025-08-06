@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Connect SFTP — Keys & Secure Variable Setup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-800 antialiased">
+  <header class="bg-sky-700 text-white shadow">
+    <div class="max-w-6xl mx-auto px-4 py-6">
+      <h1 class="text-2xl font-semibold tracking-wide">Connect SFTP — Keys & Secure Variable Setup</h1>
+      <p class="text-sm text-sky-100 mt-1">Generate an SFTP keypair (ECDSA or RSA), share the <em>public</em> key with the vendor or server, and use the <strong>private</strong> key securely in Connect.</p>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-4 py-10 space-y-14">
+
+    <section class="space-y-3">
+      <h2 class="text-xl font-semibold text-sky-700">Overview</h2>
+      <ul class="list-disc list-inside text-sm space-y-1">
+        <li><strong>Preferred key type:</strong> <code>ECDSA P-256</code> (a.k.a. <code>nistp256</code>) — broad compatibility and stronger modern default than RSA-SHA1.</li>
+        <li><strong>Alternative:</strong> <code>RSA 3072+</code> (uses SHA-2). Some vendors still require RSA.</li>
+        <li>You will: (1) generate a keypair, (2) send the <em>.pub</em> to the vendor <em>or</em> install it on your SFTP server, (3) paste the private key into a secure variable in Connect, and (4) reference it in <code>defineRemoteFilesystem</code>.</li>
+      </ul>
+    </section>
+
+    <section class="space-y-3">
+      <h2 class="text-xl font-semibold text-sky-700">Prerequisites</h2>
+      <ul class="list-disc list-inside text-sm space-y-1">
+        <li><strong>OpenSSH is built in</strong> to macOS, most Linux distros, and current Windows 10/11. In PowerShell or Terminal, run <code>ssh -V</code> to confirm.</li>
+        <li>Have the <strong>SFTP username</strong> from the vendor. You’ll place it in the comment with <code>-C</code> during key generation.</li>
+      </ul>
+    </section>
+
+    <section id="gen-ecdsa" class="space-y-4">
+      <h2 class="text-xl font-semibold text-sky-700">1) Generate an ECDSA (P-256) keypair — recommended</h2>
+      <p class="text-sm">Run one of these commands (macOS, Linux, or Windows PowerShell). Replace <code>your_sftp_username</code> with the username the vendor gave you.</p>
+      <pre class="bg-gray-100 p-3 rounded text-sm whitespace-pre-wrap"><code># ECDSA P-256, PEM format (works well with many SFTP libraries)
+ssh-keygen -t ecdsa -b 256 -m PEM -f ./vendor_sftp_ecdsa -C "your_sftp_username@vendor"</code></pre>
+      <ul class="list-disc list-inside text-sm space-y-1">
+        <li>This creates a <strong>private key</strong> <code>vendor_sftp_ecdsa</code> and a <strong>public key</strong> <code>vendor_sftp_ecdsa.pub</code>.</li>
+        <li>Choosing a passphrase is optional but recommended. If you set one, you’ll also add it in Connect later.</li>
+      </ul>
+    </section>
+
+    <section id="gen-rsa" class="space-y-4">
+      <h2 class="text-xl font-semibold text-sky-700">2) Generate an RSA (3072-bit) keypair — alternative</h2>
+      <p class="text-sm">Use RSA if the vendor insists on it. This uses SHA-2 and writes in PEM format.</p>
+      <pre class="bg-gray-100 p-3 rounded text-sm whitespace-pre-wrap"><code>ssh-keygen -t rsa -b 3072 -o -a 100 -m PEM -f ./vendor_sftp_rsa -C "your_sftp_username@vendor"</code></pre>
+      <ul class="list-disc list-inside text-sm space-y-1">
+        <li>Outputs <code>vendor_sftp_rsa</code> (private) and <code>vendor_sftp_rsa.pub</code> (public).</li>
+      </ul>
+    </section>
+
+    <section id="send-pub" class="space-y-4">
+      <h2 class="text-xl font-semibold text-sky-700">3) Provide the <em>public</em> key to the SFTP server</h2>
+      <div class="space-y-2 text-sm">
+        <p><strong>If a vendor hosts the SFTP:</strong> send them the contents of <code>.pub</code> (the single line starting with <code>ecdsa-sha2-nistp256</code> or <code>ssh-rsa</code>). Do <em>not</em> send the private key.</p>
+        <p><strong>If you host the SFTP server yourself:</strong> append the public key line to the target account’s <code>~/.ssh/authorized_keys</code> file, then set permissions:</p>
+        <pre class="bg-gray-100 p-3 rounded text-sm whitespace-pre-wrap"><code>mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+cat vendor_sftp_ecdsa.pub &gt;&gt; ~/.ssh/authorized_keys   # or vendor_sftp_rsa.pub
+chmod 600 ~/.ssh/authorized_keys</code></pre>
+      </div>
+    </section>
+
+    <section id="create-variable" class="space-y-4">
+      <h2 class="text-xl font-semibold text-sky-700">4) Create the <code>privateKey</code> variable in Connect (secure)</h2>
+      <p class="text-sm">Add a <strong>setVariable</strong> action named <code>privateKey</code>. Open the private key file in a text editor and paste the <em>entire</em> PEM including the header/footer lines.</p>
+      <ul class="list-disc list-inside text-sm space-y-1">
+        <li>Make sure the pasted key begins with <code>-----BEGIN EC PRIVATE KEY-----</code> (ECDSA) or <code>-----BEGIN RSA PRIVATE KEY-----</code> (RSA).</li>
+        <li><strong>Set the value type to <em>Password</em></strong> so the key is not visible in logs or UI.</li>
+        <li>Preserve line breaks exactly as they appear in the file.</li>
+      </ul>
+      <img src="./Screenshot 2025-08-05 at 9.08.12 PM.png" alt="Create privateKey variable" class="rounded shadow">
+      <img src="./Screenshot 2025-08-05 at 9.09.05 PM.png" alt="privateKey variable stored as Password" class="rounded shadow mt-4">
+    </section>
+
+    <section id="reference-key" class="space-y-4">
+      <h2 class="text-xl font-semibold text-sky-700">5) Use the key in <code>defineRemoteFilesystem</code></h2>
+      <p class="text-sm">In your SFTP connection action, set the host, user, and basePath, and reference the key via <code>extraProperties</code>. The <strong>user</strong> is the SFTP username the vendor provided.</p>
+      <pre class="bg-gray-100 p-3 rounded text-sm whitespace-pre-wrap"><code>{
+  "sftp.privateKey": privateKey
+  /* If your private key has a passphrase, also include:
+     "sftp.privateKeyPassphrase": privateKeyPass   // another Password variable
+  */
+}</code></pre>
+      <img src="./Screenshot 2025-08-05 at 9.10.26 PM.png" alt="extraProperties with sftp.privateKey mapped to privateKey variable" class="rounded shadow">
+    </section>
+
+    <section id="test" class="space-y-3">
+      <h2 class="text-xl font-semibold text-sky-700">6) Test the connection</h2>
+      <ul class="list-disc list-inside text-sm space-y-1">
+        <li>Run the action set and try a simple operation like <code>listFiles</code> on your base path.</li>
+        <li>If it fails, double-check: the username, host, base path, and that the vendor installed your <code>.pub</code> key for that username.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshooting" class="space-y-3">
+      <h2 class="text-xl font-semibold text-sky-700">Troubleshooting</h2>
+      <ul class="list-disc list-inside text-sm space-y-2">
+        <li><strong>“Algorithm negotiation fail” or “ssh-rsa not in PubkeyAcceptedAlgorithms”</strong> — Use the ECDSA (P-256) key; many servers refuse SHA-1 RSA. If RSA is required, ensure it’s 3072+ and that the server allows <code>rsa-sha2-256/512</code>.</li>
+        <li><strong>“Auth fail”</strong> — Verify the vendor actually installed your <code>.pub</code> for the exact username you’re using.</li>
+        <li><strong>Key format errors</strong> — The private key must be PEM with the proper header/footer. Regenerate using the commands above (note the <code>-m PEM</code> flag).</li>
+        <li><strong>Passphrase prompts</strong> — If your key is passphrase-protected, store the passphrase in a Password variable and add <code>"sftp.privateKeyPassphrase"</code> in <code>extraProperties</code>.</li>
+        <li><strong>Copy/paste issues</strong> — Ensure no extra spaces, hidden characters, or removed line breaks in the PEM.</li>
+      </ul>
+    </section>
+
+
+    <section id="security" class="space-y-3">
+      <h2 class="text-xl font-semibold text-sky-700">Security Notes</h2>
+      <ul class="list-disc list-inside text-sm space-y-1">
+        <li>Never email your private key. Only send the <code>.pub</code> to the vendor.</li>
+        <li>Keep the Connect variable type as <strong>Password</strong> so the key remains hidden.</li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer class="bg-sky-700 text-white text-sm">
+    <div class="max-w-6xl mx-auto px-4 py-4 text-center">
+      © SFTP Key Setup Guide
+    </div>
+  </footer>
+</body>
+</html>
