@@ -100,9 +100,6 @@ chmod 600 ~/.ssh/authorized_keys</code></pre>
       </p>
       <pre class="bg-gray-100 p-3 rounded text-sm whitespace-pre-wrap"><code>{
   "sftp.privateKey": privateKey
-  /* If your private key has a passphrase, also include:
-     "sftp.privateKeyPassphrase": privateKeyPass   // another Password variable
-  */
 }</code></pre>
       <img src="img2.png" alt="extraProperties with sftp.privateKey mapped to privateKey variable" class="rounded shadow">
     </section>
@@ -123,7 +120,6 @@ chmod 600 ~/.ssh/authorized_keys</code></pre>
         <li><strong>“userauth_pubkey: key type ssh-rsa not in PubkeyAcceptedAlgorithms”</strong> — The server disabled <code>ssh-rsa</code> (SHA-1). Generate and use an <strong>ECDSA P-256 (PEM)</strong> key instead.</li>
         <li><strong>“Auth fail”</strong> — The public key likely isn’t installed for that username on the server. Re-send the <code>.pub</code> to the vendor or add it to <code>authorized_keys</code>.</li>
         <li><strong>Key format errors</strong> — Regenerate with the commands above (note <code>-m PEM</code>) and paste the PEM exactly, including headers/footers.</li>
-        <li><strong>Passphrase prompts</strong> — Store the passphrase in a Password variable and include <code>"sftp.privateKeyPassphrase"</code> in <code>extraProperties</code>.</li>
       </ul>
     </section>
 
